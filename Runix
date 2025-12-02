@@ -1,48 +1,51 @@
---// ===== CONFIG ===== //--
-local highlightFill = Color3.fromRGB(255, 255, 255)
-local highlightOutline = Color3.fromRGB(255, 255, 255)
---// ==================== //--
+--// Runix ESP Button (Draggable + Neon Style)
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- Cria a GUI
+--// Criar GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ESP_GUI"
-ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
 
--- Botão principal
-local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(0, 120, 0, 40)
-Button.Position = UDim2.new(0.1, 0, 0.3, 0)
-Button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Button.Text = "ESP: OFF"
-Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-Button.Font = Enum.Font.GothamBold
-Button.TextSize = 18
-Button.AutoButtonColor = false
+--// Criar Botão
+local Button = Instance.new("Frame")
+Button.Size = UDim2.new(0, 150, 0, 50)
+Button.Position = UDim2.new(0.05, 0, 0.1, 0)
+Button.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+Button.BackgroundTransparency = 0.25
 Button.BorderSizePixel = 0
 Button.Parent = ScreenGui
 
--- Estilo suave
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = Button
-
+-- Glow branco neon
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255,255,255)
-UIStroke.Thickness = 1.6
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+UIStroke.Thickness = 2
+UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 UIStroke.Parent = Button
 
--- Arrastar botão
-local dragging, dragInput, startPos, startMousePos
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Button
+
+-- Texto do botão
+local Label = Instance.new("TextLabel")
+Label.Size = UDim2.new(1, 0, 1, 0)
+Label.BackgroundTransparency = 1
+Label.Text = "ESP: OFF"
+Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+Label.Font = Enum.Font.GothamBold
+Label.TextScaled = true
+Label.Parent = Button
+
+-- Tornar o botão arrastável
+local dragging, dragInput, dragStart, startPos
 
 Button.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+	   input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
-		startMousePos = input.Position
+		dragStart = input.Position
 		startPos = Button.Position
 
 		input.Changed:Connect(function()
@@ -54,75 +57,73 @@ Button.InputBegan:Connect(function(input)
 end)
 
 Button.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement then
+	if input.UserInputType == Enum.UserInputType.MouseMovement or 
+	   input.UserInputType == Enum.UserInputType.Touch then
 		dragInput = input
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
-	if dragging and dragInput then
-		local delta = dragInput.Position - startMousePos
-		Button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		Button.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
 	end
 end)
 
--- ESP functions
-local ESP_Enabled = false
-local ActiveHighlights = {}
+--// Funções do ESP
+local espEnabled = false
 
-local function CreateESP(player)
-	if player == LocalPlayer then return end
+local function ApplyESP(player)
+	if not player.Character then return end
+	local char = player.Character
 
-	local character = player.Character
-	if not character then return end
+	if not char:FindFirstChild("RunixESP") then
+		local h = Instance.new("Highlight")
+		h.Name = "RunixESP"
+		h.FillTransparency = 1 -- só linha
+		h.OutlineColor = Color3.fromRGB(255, 255, 255)
+		h.OutlineTransparency = 0
+		h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		h.Parent = char
+	end
 
-	if ActiveHighlights[player] then return end
-
-	local highlight = Instance.new("Highlight")
-	highlight.FillColor = highlightFill
-	highlight.OutlineColor = highlightOutline
-	highlight.FillTransparency = 0.75
-	highlight.OutlineTransparency = 0
-	highlight.Adornee = character
-	highlight.Parent = character
-
-	ActiveHighlights[player] = highlight
+	char.RunixESP.Enabled = true
 end
 
 local function RemoveESP(player)
-	if ActiveHighlights[player] then
-		ActiveHighlights[player]:Destroy()
-		ActiveHighlights[player] = nil
+	if player.Character and player.Character:FindFirstChild("RunixESP") then
+		player.Character.RunixESP.Enabled = false
 	end
 end
 
--- Atualização contínua do ESP
-RunService.RenderStepped:Connect(function()
-	if not ESP_Enabled then return end
+-- Ativar e desativar
+local function ToggleESP()
+	espEnabled = not espEnabled
+	Label.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+	UIStroke.Color = espEnabled and Color3.fromRGB(0, 255, 150) or Color3.fromRGB(255, 255, 255)
 
-	for _, player in pairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer then
-			if player.Character then
-				CreateESP(player)
-			end
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			if espEnabled then ApplyESP(p) else RemoveESP(p) end
 		end
+	end
+end
+
+-- Clicar no botão ativa/desativa
+Button.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		ToggleESP()
 	end
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-	RemoveESP(player)
-end)
-
--- Toggle ESP On/Off
-Button.MouseButton1Click:Connect(function()
-	ESP_Enabled = not ESP_Enabled
-
-	Button.Text = "ESP: " .. (ESP_Enabled and "ON" or "OFF")
-
-	if not ESP_Enabled then
-		for p,h in pairs(ActiveHighlights) do
-			if h then h:Destroy() end
-		end
-		ActiveHighlights = {}
-	end
+-- Atualizar quando novos jogadores entrarem
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		if espEnabled then ApplyESP(player) end
+	end)
 end)
