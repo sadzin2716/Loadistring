@@ -1,141 +1,183 @@
---=====================================================--
---===[      ESP BUTTON NEON – BY Sadz7     ]===--
---=====================================================--
+--// Orion GUI
+local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
 
-if getgenv().RUNIX_ESP_LOADED then return end
-getgenv().RUNIX_ESP_LOADED = true
+local Window = OrionLib:MakeWindow({
+    Name = "Runix V3",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "RunixV3"
+})
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
 
---=====================================================--
---===[             FUNÇÃO DE HIGHLIGHT                ]--
---=====================================================--
+--===============================================================
+-- CONFIG
+--===============================================================
+local ESP_Enabled = false
+local Aimbot_Enabled = false
+local FOV_Size = 150
 
-local function createHighlight(target)
-    if target:FindFirstChild("RUNIX_HIGHLIGHT") then return target.RUNIX_HIGHLIGHT end
+--===============================================================
+-- ESP
+--===============================================================
+local function applyESP(player)
+    if player == LocalPlayer then return end
 
-    local hl = Instance.new("Highlight")
-    hl.Name = "RUNIX_HIGHLIGHT"
-    hl.FillTransparency = 1
-    hl.OutlineColor = Color3.fromRGB(255,255,255)
-    hl.OutlineTransparency = 0
-    hl.Parent = target
-    return hl
-end
+    local function highlightChar(char)
+        if not ESP_Enabled then return end
+        
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
 
-local function removeHighlight(target)
-    if target:FindFirstChild("RUNIX_HIGHLIGHT") then
-        target.RUNIX_HIGHLIGHT:Destroy()
+        -- Team Check
+        if LocalPlayer.Team and player.Team == LocalPlayer.Team then
+            return
+        end
+
+        local highlight = char:FindFirstChild("RunixESP")
+        if not highlight then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "RunixESP"
+            highlight.Parent = char
+        end
+
+        highlight.FillColor = Color3.fromRGB(255,255,255)
+        highlight.OutlineColor = Color3.fromRGB(255,255,255)
+        highlight.FillTransparency = 0.8
+        highlight.OutlineTransparency = 0
+        highlight.Enabled = true
+    end
+
+    player.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        highlightChar(char)
+    end)
+
+    if player.Character then
+        highlightChar(player.Character)
     end
 end
 
-local ESP_ENABLED = false
+local function removeESP(player)
+    if player.Character then
+        local h = player.Character:FindFirstChild("RunixESP")
+        if h then h.Enabled = false end
+    end
+end
 
-local function updateESP()
-    for _,plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            local char = plr.Character
-            if char then
-                local sameTeam = (plr.Team ~= nil and LocalPlayer.Team ~= nil) and (plr.Team == LocalPlayer.Team)
+task.spawn(function()
+    while true do
+        if ESP_Enabled then
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    applyESP(player)
+                end
+            end
+        end
+        task.wait(1)
+    end
+end)
 
-                if ESP_ENABLED and not sameTeam then
-                    createHighlight(char)
-                else
-                    removeHighlight(char)
+--===============================================================
+-- AIMBOT + FOV
+--===============================================================
+local circle = Drawing.new("Circle")
+circle.Color = Color3.fromRGB(255, 255, 255)
+circle.Thickness = 1
+circle.Filled = false
+circle.Transparency = 1
+circle.Radius = FOV_Size
+circle.Visible = false
+
+local function getClosestEnemy()
+    local mousePos = UserInputService:GetMouseLocation()
+    local closest = nil
+    local shortestDist = FOV_Size
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+
+            if LocalPlayer.Team and player.Team == LocalPlayer.Team then
+                continue
+            end
+
+            local head = player.Character.Head
+            local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
+
+            if onScreen then
+                local dist = (mousePos - Vector2.new(pos.X, pos.Y)).Magnitude
+                if dist < shortestDist then
+                    closest = head
+                    shortestDist = dist
                 end
             end
         end
     end
+
+    return closest
 end
 
-Players.PlayerAdded:Connect(function(p)
-    p.CharacterAdded:Connect(function()
-        task.wait(1)
-        updateESP()
-    end)
-end)
+RunService.RenderStepped:Connect(function()
+    circle.Position = UserInputService:GetMouseLocation()
+    circle.Radius = FOV_Size
+    circle.Visible = Aimbot_Enabled
 
-Players.PlayerRemoving:Connect(function()
-    updateESP()
-end)
+    if not Aimbot_Enabled then return end
 
-RunService.Heartbeat:Connect(updateESP)
-
---=====================================================--
---===[            GUI – BOTÃO NEON ARRASTÁVEL         ]--
---=====================================================--
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.IgnoreGuiInset = true
-
-local Button = Instance.new("TextButton")
-Button.Parent = ScreenGui
-Button.Size = UDim2.new(0, 240, 0, 90)
-Button.Position = UDim2.new(0.05, 0, 0.1, 0)
-Button.BackgroundColor3 = Color3.fromRGB(25,25,25)
-Button.Text = "ESP: OFF"
-Button.TextColor3 = Color3.fromRGB(255,255,255)
-Button.TextScaled = true
-Button.Font = Enum.Font.GothamBold
-Button.AutoButtonColor = false
-Button.BorderSizePixel = 0
-Button.Active = true
-Button.Draggable = true
-
--- Borda neon
-local neon = Instance.new("UICorner", Button)
-neon.CornerRadius = UDim.new(0, 25)
-
-local stroke = Instance.new("UIStroke", Button)
-stroke.Color = Color3.fromRGB(255,255,255)
-stroke.Thickness = 3
-stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-local glow = Instance.new("ImageLabel", Button)
-glow.Size = UDim2.new(1, 25, 1, 25)
-glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-glow.AnchorPoint = Vector2.new(0.5,0.5)
-glow.BackgroundTransparency = 1
-glow.Image = "rbxassetid://4994807065" -- blur glow
-glow.ImageColor3 = Color3.fromRGB(255,255,255)
-glow.ImageTransparency = 0.4
-
--- Clique animado
-local function clickAnim()
-    Button:TweenSize(UDim2.new(0,230,0,85), "Out", "Quad", 0.08, true)
-    task.wait(0.1)
-    Button:TweenSize(UDim2.new(0,240,0,90), "Out", "Quad", 0.08, true)
-end
-
---=====================================================--
---===[               BOTÃO ON / OFF                   ]--
---=====================================================--
-
-Button.MouseButton1Click:Connect(function()
-    ESP_ENABLED = not ESP_ENABLED
-    clickAnim()
-
-    if ESP_ENABLED then
-        Button.Text = "ESP: ON"
-        stroke.Color = Color3.fromRGB(0, 255, 140)
-        glow.ImageColor3 = Color3.fromRGB(0,255,140)
-    else
-        Button.Text = "ESP: OFF"
-        stroke.Color = Color3.fromRGB(255,255,255)
-        glow.ImageColor3 = Color3.fromRGB(255,255,255)
+    local target = getClosestEnemy()
+    if target then
+        local pos = Camera:WorldToViewportPoint(target.Position)
+        mousemoverel((pos.X - circle.Position.X) * 0.1, (pos.Y - circle.Position.Y) * 0.1)
     end
-
-    updateESP()
 end)
 
---=====================================================--
---===[                 AUTO-CHECK                      ]--
---=====================================================--
+--===============================================================
+-- GUI – Aba "Geral"
+--===============================================================
+local GeralTab = Window:MakeTab({
+    Name = "Geral",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(1)
-    updateESP()
-end)
+-- ESP Toggle
+GeralTab:AddToggle({
+    Name = "ESP (Highlight Branco)",
+    Default = false,
+    Callback = function(Value)
+        ESP_Enabled = Value
+        for _, player in ipairs(Players:GetPlayers()) do
+            if Value then applyESP(player) else removeESP(player) end
+        end
+    end
+})
+
+-- Aimbot Toggle
+GeralTab:AddToggle({
+    Name = "Aimbot",
+    Default = false,
+    Callback = function(Value)
+        Aimbot_Enabled = Value
+        circle.Visible = Value
+    end
+})
+
+-- FOV Slider
+GeralTab:AddSlider({
+    Name = "Tamanho do FOV",
+    Min = 50,
+    Max = 300,
+    Default = 150,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    Callback = function(Value)
+        FOV_Size = Value
+    end
+})
+
+-- Inicia GUI
+OrionLib:Init()
