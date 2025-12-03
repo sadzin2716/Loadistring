@@ -1,173 +1,141 @@
---===============================================================--
---   ESP | Neon | Botão Arrastável | Auto-Update | Team Check   --
---===============================================================--
+--=====================================================--
+--===[      ESP BUTTON NEON – BY Sadz7     ]===--
+--=====================================================--
+
+if getgenv().RUNIX_ESP_LOADED then return end
+getgenv().RUNIX_ESP_LOADED = true
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
-local ESP_Enabled = false
-local Highlights = {}
+--=====================================================--
+--===[             FUNÇÃO DE HIGHLIGHT                ]--
+--=====================================================--
 
---===============================================================--
---               CRIA / REMOVE HIGHLIGHT NOS PLAYERS
---===============================================================--
+local function createHighlight(target)
+    if target:FindFirstChild("RUNIX_HIGHLIGHT") then return target.RUNIX_HIGHLIGHT end
 
-local function RemoveHighlight(player)
-	if Highlights[player] then
-		Highlights[player]:Destroy()
-		Highlights[player] = nil
-	end
+    local hl = Instance.new("Highlight")
+    hl.Name = "RUNIX_HIGHLIGHT"
+    hl.FillTransparency = 1
+    hl.OutlineColor = Color3.fromRGB(255,255,255)
+    hl.OutlineTransparency = 0
+    hl.Parent = target
+    return hl
 end
 
-local function CreateHighlight(player)
-	if Highlights[player] then return end
-	if not player.Character then return end
-
-	local hl = Instance.new("Highlight")
-	hl.Adornee = player.Character
-	hl.FillTransparency = 1
-	hl.OutlineTransparency = 0
-	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-	hl.Parent = player.Character
-
-	Highlights[player] = hl
+local function removeHighlight(target)
+    if target:FindFirstChild("RUNIX_HIGHLIGHT") then
+        target.RUNIX_HIGHLIGHT:Destroy()
+    end
 end
 
-local function IsEnemy(player)
-	if not player.Team or not LocalPlayer.Team then
-		return true
-	end
-	return player.Team ~= LocalPlayer.Team
+local ESP_ENABLED = false
+
+local function updateESP()
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local char = plr.Character
+            if char then
+                local sameTeam = (plr.Team ~= nil and LocalPlayer.Team ~= nil) and (plr.Team == LocalPlayer.Team)
+
+                if ESP_ENABLED and not sameTeam then
+                    createHighlight(char)
+                else
+                    removeHighlight(char)
+                end
+            end
+        end
+    end
 end
 
-local function UpdateESP()
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer then
-			if ESP_Enabled and IsEnemy(plr) then
-				CreateHighlight(plr)
-			else
-				RemoveHighlight(plr)
-			end
-		end
-	end
-end
-
--- Correção após respawn
-local function HookCharacter(player)
-	player.CharacterAdded:Connect(function()
-		task.wait(0.4)
-		UpdateESP()
-	end)
-end
-
-for _, plr in ipairs(Players:GetPlayers()) do
-	HookCharacter(plr)
-end
-
-Players.PlayerAdded:Connect(function(plr)
-	HookCharacter(plr)
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function()
+        task.wait(1)
+        updateESP()
+    end)
 end)
 
-RunService.Heartbeat:Connect(UpdateESP)
+Players.PlayerRemoving:Connect(function()
+    updateESP()
+end)
 
---===============================================================--
---                        INTERFACE (GUI)
---===============================================================--
+RunService.Heartbeat:Connect(updateESP)
 
-local Gui = Instance.new("ScreenGui")
-Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-Gui.ResetOnSpawn = false
+--=====================================================--
+--===[            GUI – BOTÃO NEON ARRASTÁVEL         ]--
+--=====================================================--
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.IgnoreGuiInset = true
 
 local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(0, 120, 0, 45)
-Button.Position = UDim2.new(0.06, 0, 0.25, 0)
+Button.Parent = ScreenGui
+Button.Size = UDim2.new(0, 240, 0, 90)
+Button.Position = UDim2.new(0.05, 0, 0.1, 0)
+Button.BackgroundColor3 = Color3.fromRGB(25,25,25)
 Button.Text = "ESP: OFF"
-Button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+Button.TextColor3 = Color3.fromRGB(255,255,255)
 Button.TextScaled = true
-Button.Font = Enum.Font.GothamBlack
-Button.BackgroundTransparency = 0.15
-Button.Parent = Gui
+Button.Font = Enum.Font.GothamBold
+Button.AutoButtonColor = false
+Button.BorderSizePixel = 0
+Button.Active = true
+Button.Draggable = true
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 12)
-Corner.Parent = Button
+-- Borda neon
+local neon = Instance.new("UICorner", Button)
+neon.CornerRadius = UDim.new(0, 25)
 
--- Contorno neon
-local Stroke = Instance.new("UIStroke")
-Stroke.Thickness = 3
-Stroke.Color = Color3.fromRGB(0, 255, 255)
-Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-Stroke.Parent = Button
+local stroke = Instance.new("UIStroke", Button)
+stroke.Color = Color3.fromRGB(255,255,255)
+stroke.Thickness = 3
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
--- Glow neon
-local Glow = Instance.new("ImageLabel")
-Glow.Size = UDim2.new(1, 18, 1, 18)
-Glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-Glow.AnchorPoint = Vector2.new(0.5, 0.5)
-Glow.BackgroundTransparency = 1
-Glow.Image = "rbxassetid://5028857084"
-Glow.ImageColor3 = Color3.fromRGB(0, 255, 255)
-Glow.ImageTransparency = 0.45
-Glow.Parent = Button
+local glow = Instance.new("ImageLabel", Button)
+glow.Size = UDim2.new(1, 25, 1, 25)
+glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+glow.AnchorPoint = Vector2.new(0.5,0.5)
+glow.BackgroundTransparency = 1
+glow.Image = "rbxassetid://4994807065" -- blur glow
+glow.ImageColor3 = Color3.fromRGB(255,255,255)
+glow.ImageTransparency = 0.4
 
---===============================================================--
---               ANIMAÇÃO DE CLIQUE + ALTERAR ESTADO
---===============================================================--
+-- Clique animado
+local function clickAnim()
+    Button:TweenSize(UDim2.new(0,230,0,85), "Out", "Quad", 0.08, true)
+    task.wait(0.1)
+    Button:TweenSize(UDim2.new(0,240,0,90), "Out", "Quad", 0.08, true)
+end
 
-local TweenService = game:GetService("TweenService")
-local clickTween = TweenService:Create(Button, TweenInfo.new(0.08), {Size = UDim2.new(0, 115, 0, 40)})
-local releaseTween = TweenService:Create(Button, TweenInfo.new(0.08), {Size = UDim2.new(0, 120, 0, 45)})
+--=====================================================--
+--===[               BOTÃO ON / OFF                   ]--
+--=====================================================--
 
 Button.MouseButton1Click:Connect(function()
-	-- Animação
-	clickTween:Play()
-	task.wait(0.07)
-	releaseTween:Play()
+    ESP_ENABLED = not ESP_ENABLED
+    clickAnim()
 
-	-- Liga/Desliga ESP
-	ESP_Enabled = not ESP_Enabled
-	Button.Text = ESP_Enabled and "ESP: ON" or "ESP: OFF"
+    if ESP_ENABLED then
+        Button.Text = "ESP: ON"
+        stroke.Color = Color3.fromRGB(0, 255, 140)
+        glow.ImageColor3 = Color3.fromRGB(0,255,140)
+    else
+        Button.Text = "ESP: OFF"
+        stroke.Color = Color3.fromRGB(255,255,255)
+        glow.ImageColor3 = Color3.fromRGB(255,255,255)
+    end
 
-	-- Neon muda ao ligar
-	local color = ESP_Enabled and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(255, 255, 255)
-
-	Stroke.Color = color
-	Glow.ImageColor3 = color
-
-	UpdateESP()
+    updateESP()
 end)
 
---===============================================================--
---                      SISTEMA DE ARRASTAR
---===============================================================--
+--=====================================================--
+--===[                 AUTO-CHECK                      ]--
+--=====================================================--
 
-local dragging, dragStart, startPos
-
-Button.InputBegan:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = i.Position
-		startPos = Button.Position
-	end
-end)
-
-Button.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
-
-UIS.InputChanged:Connect(function(i)
-	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-		local delta = i.Position - dragStart
-		Button.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    updateESP()
 end)
