@@ -2,10 +2,10 @@
 local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
 
 local Window = OrionLib:MakeWindow({
-    Name = "Runix V3",
+    Name = "Runix",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "RunixV3"
+    ConfigFolder = "Runix"
 })
 
 local Players = game:GetService("Players")
@@ -166,16 +166,26 @@ GeralTab:AddToggle({
     end
 })
 
+--===============================================================
+-- GUI – Aba "settings"
+--===============================================================
+local SettingsTab = Window:MakeTab({
+    Name = "Configurações",
+    Icon = "rbxassetid://7743872218",
+    PremiumOnly = false
+})
+
 -- FOV Slider
-GeralTab:AddSlider({
-    Name = "Tamanho do FOV",
-    Min = 50,
+SettingsTab:AddSlider({
+    Name = "FOV Size",
+    Min = 20,
     Max = 300,
-    Default = 150,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 1,
+    Default = 80,
     Callback = function(Value)
-        FOV_Size = Value
+        FOVSize = Value
+        if FOVCircle then
+            FOVCircle.Radius = Value
+        end
     end
 })
 
