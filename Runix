@@ -1,161 +1,173 @@
---[[
-   ESP BUTTON (DRAGGABLE) + TEAM CHECK + AUTO UPDATE
-   Feito especialmente para você ★
-]]
-
---== UTILIDADES =======================================================--
+--===============================================================--
+--   ESP | Neon | Botão Arrastável | Auto-Update | Team Check   --
+--===============================================================--
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Guarda highlights criados
-local ActiveHighlights = {}
+local ESP_Enabled = false
+local Highlights = {}
 
---== FUNÇÃO: Criar Highlight ==========================================--
-
-local function CreateHighlight(player)
-    -- Garante que não duplique
-    if ActiveHighlights[player] then
-        return ActiveHighlights[player]
-    end
-
-    -- Verifica se o player tem personagem
-    local character = player.Character
-    if not character then return end
-
-    -- Cria highlight
-    local hl = Instance.new("Highlight")
-    hl.FillColor = Color3.fromRGB(255, 255, 255)
-    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-    hl.FillTransparency = 1 -- sem preenchimento
-    hl.OutlineTransparency = 0
-    hl.Adornee = character
-    hl.Parent = character
-
-    ActiveHighlights[player] = hl
-    return hl
-end
-
---== FUNÇÃO: Remover Highlight ========================================--
+--===============================================================--
+--               CRIA / REMOVE HIGHLIGHT NOS PLAYERS
+--===============================================================--
 
 local function RemoveHighlight(player)
-    if ActiveHighlights[player] then
-        ActiveHighlights[player]:Destroy()
-        ActiveHighlights[player] = nil
-    end
+	if Highlights[player] then
+		Highlights[player]:Destroy()
+		Highlights[player] = nil
+	end
 end
 
---== FUNÇÃO: Verificar se é inimigo ====================================--
+local function CreateHighlight(player)
+	if Highlights[player] then return end
+	if not player.Character then return end
+
+	local hl = Instance.new("Highlight")
+	hl.Adornee = player.Character
+	hl.FillTransparency = 1
+	hl.OutlineTransparency = 0
+	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+	hl.Parent = player.Character
+
+	Highlights[player] = hl
+end
 
 local function IsEnemy(player)
-    -- Se não existir teams → todos são rivais
-    if not player.Team or not LocalPlayer.Team then
-        return true
-    end
-
-    -- Team diferente = rival
-    return player.Team ~= LocalPlayer.Team
+	if not player.Team or not LocalPlayer.Team then
+		return true
+	end
+	return player.Team ~= LocalPlayer.Team
 end
-
---== SISTEMA PRINCIPAL DO ESP =========================================--
-
-local ESP_Enabled = false
 
 local function UpdateESP()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-
-            -- Se ESP está ligado e é inimigo → cria highlight
-            if ESP_Enabled and IsEnemy(player) then
-                CreateHighlight(player)
-            else
-                -- Se desligado → remove
-                RemoveHighlight(player)
-            end
-        end
-    end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then
+			if ESP_Enabled and IsEnemy(plr) then
+				CreateHighlight(plr)
+			else
+				RemoveHighlight(plr)
+			end
+		end
+	end
 end
 
--- Atualiza sempre que personagem renascer
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        UpdateESP()
-    end)
+-- Correção após respawn
+local function HookCharacter(player)
+	player.CharacterAdded:Connect(function()
+		task.wait(0.4)
+		UpdateESP()
+	end)
+end
+
+for _, plr in ipairs(Players:GetPlayers()) do
+	HookCharacter(plr)
+end
+
+Players.PlayerAdded:Connect(function(plr)
+	HookCharacter(plr)
 end)
 
--- Checa constantemente
 RunService.Heartbeat:Connect(UpdateESP)
 
---== INTERFACE: BOTÃO ARRASTÁVEL ======================================--
+--===============================================================--
+--                        INTERFACE (GUI)
+--===============================================================--
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ResetOnSpawn = false
+local Gui = Instance.new("ScreenGui")
+Gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+Gui.ResetOnSpawn = false
 
 local Button = Instance.new("TextButton")
-Button.Size = UDim2.new(0, 110, 0, 40)
-Button.Position = UDim2.new(0.05, 0, 0.2, 0)
+Button.Size = UDim2.new(0, 120, 0, 45)
+Button.Position = UDim2.new(0.06, 0, 0.25, 0)
 Button.Text = "ESP: OFF"
-Button.TextScaled = true
-Button.Font = Enum.Font.GothamBold
-Button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-Button.AutoButtonColor = false
-Button.Parent = ScreenGui
+Button.TextScaled = true
+Button.Font = Enum.Font.GothamBlack
 Button.BackgroundTransparency = 0.15
-Button.BorderSizePixel = 0
+Button.Parent = Gui
 
--- Bordas arredondadas
 local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 10)
+Corner.CornerRadius = UDim.new(0, 12)
 Corner.Parent = Button
 
--- Efeito glow
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(255, 255, 255)
-UIStroke.Thickness = 2
-UIStroke.Parent = Button
+-- Contorno neon
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 3
+Stroke.Color = Color3.fromRGB(0, 255, 255)
+Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+Stroke.Parent = Button
 
---== ARRASTAR BOTÃO =====================================================--
+-- Glow neon
+local Glow = Instance.new("ImageLabel")
+Glow.Size = UDim2.new(1, 18, 1, 18)
+Glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+Glow.AnchorPoint = Vector2.new(0.5, 0.5)
+Glow.BackgroundTransparency = 1
+Glow.Image = "rbxassetid://5028857084"
+Glow.ImageColor3 = Color3.fromRGB(0, 255, 255)
+Glow.ImageTransparency = 0.45
+Glow.Parent = Button
 
-local dragging = false
-local dragStart, startPos
+--===============================================================--
+--               ANIMAÇÃO DE CLIQUE + ALTERAR ESTADO
+--===============================================================--
 
-Button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Button.Position
-    end
-end)
-
-Button.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        Button.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
---== LÓGICA DO BOTÃO ESP ON/OFF ========================================--
+local TweenService = game:GetService("TweenService")
+local clickTween = TweenService:Create(Button, TweenInfo.new(0.08), {Size = UDim2.new(0, 115, 0, 40)})
+local releaseTween = TweenService:Create(Button, TweenInfo.new(0.08), {Size = UDim2.new(0, 120, 0, 45)})
 
 Button.MouseButton1Click:Connect(function()
-    ESP_Enabled = not ESP_Enabled
+	-- Animação
+	clickTween:Play()
+	task.wait(0.07)
+	releaseTween:Play()
 
-    Button.Text = ESP_Enabled and "ESP: ON" or "ESP: OFF"
-    Button.BackgroundColor3 = ESP_Enabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(40, 40, 40)
+	-- Liga/Desliga ESP
+	ESP_Enabled = not ESP_Enabled
+	Button.Text = ESP_Enabled and "ESP: ON" or "ESP: OFF"
 
-    UpdateESP()
+	-- Neon muda ao ligar
+	local color = ESP_Enabled and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(255, 255, 255)
+
+	Stroke.Color = color
+	Glow.ImageColor3 = color
+
+	UpdateESP()
+end)
+
+--===============================================================--
+--                      SISTEMA DE ARRASTAR
+--===============================================================--
+
+local dragging, dragStart, startPos
+
+Button.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = i.Position
+		startPos = Button.Position
+	end
+end)
+
+Button.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(i)
+	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = i.Position - dragStart
+		Button.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
 end)
